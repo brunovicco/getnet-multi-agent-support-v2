@@ -162,7 +162,12 @@ def build_ui(chat_service: ChatApplicationService) -> gr.Blocks:
 
         inputs = [message_box, chatbot, user_id_box, market_box, locale_box]
         outputs = [chatbot, message_box, execution_panel, sources_panel]
-        send_button.click(respond, inputs=inputs, outputs=outputs)
-        message_box.submit(respond, inputs=inputs, outputs=outputs)
+        # mypy [attr-defined]: gradio synthesizes .click()/.submit() from each
+        # component's EVENTS list via a metaclass at runtime; verified working
+        # (manual TestClient runs, T07), but not visible to static analysis in
+        # every environment (reproduced only in CI's Linux runner, not here).
+        # No ticket: this is a gradio-stub limitation, not project debt.
+        send_button.click(respond, inputs=inputs, outputs=outputs)  # type: ignore[attr-defined]
+        message_box.submit(respond, inputs=inputs, outputs=outputs)  # type: ignore[attr-defined]
 
     return demo

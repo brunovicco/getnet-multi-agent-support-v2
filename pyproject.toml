@@ -104,6 +104,16 @@ module = ["langfuse"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+# gradio synthesizes component event methods (.click()/.submit()/...) from
+# each component's EVENTS list via a metaclass at runtime. Whether mypy
+# resolves them statically is environment-dependent with identical locked
+# dependency versions (reproduced: fails on the Linux CI runner, passes
+# locally on macOS) - disable unused-ignore here so this file type-checks
+# cleanly either way instead of flip-flopping between environments.
+module = ["getnet_support.entrypoints.ui"]
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
 # tavily-python ships no py.typed marker / stubs as of the pinned version.
 module = ["tavily", "tavily.errors"]
 ignore_missing_imports = true
