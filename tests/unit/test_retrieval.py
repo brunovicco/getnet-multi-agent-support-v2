@@ -46,6 +46,31 @@ def test_topic_words_present_but_scattered_across_chunks_still_reject(
     assert best_accepted(candidates, score_min=SCORE_MIN, coverage_min=COVERAGE_MIN) is None
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Qual a taxa de débito?",
+        "Qual a taxa no débito?",
+        "Quanto é a taxa de débito da Getnet?",
+    ],
+)
+def test_singular_query_matches_a_chunk_that_only_has_the_plural(
+    retriever: LexicalRetriever | SemanticRetriever, query: str
+) -> None:
+    """Regression: found via manual testing, not the eval dataset.
+
+    `br-ofertas-pricing` only says "taxas" (plural); "taxa" (singular, 4
+    chars) must still match it — both in coverage and in the retrieval
+    score, since the gate requires both (REQ-09). Before the fix, this
+    query fell through to a live web search and returned unrelated
+    (non-Getnet) content instead of the corpus' own pricing chunk.
+    """
+    candidates = retriever.search(query)
+    best = best_accepted(candidates, score_min=SCORE_MIN, coverage_min=COVERAGE_MIN)
+    assert best is not None
+    assert best.chunk.id == "br-ofertas-pricing"
+
+
 def test_coverage_lexical_matches_across_languages_via_domain_glossary() -> None:
     """A Portuguese-glossed English query matches its Portuguese chunk."""
     chunk_text = "A antecipação de recebíveis permite receber o valor antes do prazo."
