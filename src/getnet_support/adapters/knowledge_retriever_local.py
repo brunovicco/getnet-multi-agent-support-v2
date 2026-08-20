@@ -1,26 +1,22 @@
 """Local RAG retriever: IDF-weighted term-overlap scoring over the persisted Getnet corpus.
 
-No vector DB or embeddings here — a small, explainable pure-Python retrieval strategy, adequate
-for a corpus of a few dozen chunks. Retrieval always filters by market before scoring, so BR and
-GLOBAL chunks never mix in one result set. Terms are weighted by inverse document frequency so a
-brand word that appears in nearly every chunk (e.g. "Getnet") does not outweigh a rare,
-discriminative term (e.g. "antecipação") when a query happens to share both.
+No vector DB or embeddings here — a small, explainable pure-Python retrieval strategy. Always the
+safe-degradation fallback when no embedding provider is configured (see
+`knowledge_retriever_semantic.py` for the P1 upgrade). Retrieval always filters by market before
+scoring, so BR and GLOBAL chunks never mix in one result set. Terms are weighted by inverse
+document frequency so a brand word that appears in nearly every chunk (e.g. "Getnet") does not
+outweigh a rare, discriminative term (e.g. "antecipação") when a query happens to share both.
 """
 
-import json
 import math
 import re
 from pathlib import Path
 
+from getnet_support.adapters.corpus_loader import load_corpus_chunks
 from getnet_support.application.ports import KnowledgeRetrieverPort
-from getnet_support.domain.models import KnowledgeChunk, Locale, Market, RetrievedChunk
+from getnet_support.domain.models import KnowledgeChunk, Market, RetrievedChunk
 
 _TOKEN_PATTERN = re.compile(r"[a-zà-ÿ0-9]+", re.IGNORECASE)
-
-_CORPUS_FILES = {
-    Market.BR: "getnet_br.json",
-    Market.GLOBAL: "getnet_global.json",
-}
 
 # Common PT-BR/EN function words. Cross-language queries (e.g. an English question over the
 # PT-BR corpus) otherwise pick up accidental stopword collisions ("via", "do", "a") as if they
@@ -114,28 +110,6 @@ def _tokenize(text: str) -> list[str]:
     ]
 
 
-def _load_chunks(corpus_dir: Path) -> tuple[KnowledgeChunk, ...]:
-    """Load every persisted corpus file into typed, immutable chunks."""
-    chunks: list[KnowledgeChunk] = []
-    for filename in _CORPUS_FILES.values():
-        raw_items = json.loads((corpus_dir / filename).read_text(encoding="utf-8"))
-        chunks.extend(
-            KnowledgeChunk(
-                id=item["id"],
-                text=item["text"],
-                title=item["title"],
-                source=item["source"],
-                market=Market(item["market"]),
-                language=Locale(item["language"]),
-                topic=item["topic"],
-                retrieved_at=item["retrieved_at"],
-                volatility=item["volatility"],
-            )
-            for item in raw_items
-        )
-    return tuple(chunks)
-
-
 def _build_term_index(
     chunks: tuple[KnowledgeChunk, ...],
 ) -> tuple[dict[str, frozenset[str]], dict[str, float]]:
@@ -168,11 +142,12 @@ class LocalKnowledgeRetriever(KnowledgeRetrieverPort):
 
     def __init__(self, corpus_dir: Path | None = None) -> None:
         """Load and index the persisted corpus once, at construction time."""
-        directory = corpus_dir or Path(__file__).parent / "corpus"
-        self._chunks = _load_chunks(directory)
+        self._chunks = load_corpus_chunks(corpus_dir)
         self._term_sets, self._idf = _build_term_index(self._chunks)
 
-    def retrieve(self, query: str, *, market: Market, top_k: int = 3) -> tuple[RetrievedChunk, ...]:
+    async def retrieve(
+        self, query: str, *, market: Market, top_k: int = 3
+    ) -> tuple[RetrievedChunk, ...]:
         """Return the top matching chunks scoped to market, best score first."""
         query_terms = frozenset(_tokenize(query))
         if not query_terms:

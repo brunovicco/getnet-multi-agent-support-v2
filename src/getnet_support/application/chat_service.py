@@ -13,12 +13,14 @@ from getnet_support.application.customer_support_agent import (
     CustomerSupportResult,
 )
 from getnet_support.application.escalation_agent import EscalationAgent
+from getnet_support.application.guardrails import is_unsupported_financial_operation
 from getnet_support.application.knowledge_agent import KnowledgeAgent
 from getnet_support.application.ports import CustomerNotFoundError
 from getnet_support.application.router_agent import RouterAgent
 from getnet_support.domain.models import (
     AgentName,
     ChatResult,
+    EscalationReason,
     Locale,
     Market,
     Route,
@@ -61,8 +63,13 @@ class ChatApplicationService:
 
         if route is Route.ESCALATION:
             agents.append(AgentName.ESCALATION)
+            escalation_reason = (
+                EscalationReason.UNSUPPORTED_FINANCIAL_OPERATION
+                if is_unsupported_financial_operation(message)
+                else EscalationReason.EXPLICIT_HUMAN_REQUEST
+            )
             answer = self._escalation_agent.handle(
-                locale=locale, reason="unsupported_or_sensitive_request"
+                locale=locale, reason=escalation_reason, market=market
             )
             handoff_required = True
         elif route is Route.CUSTOMER_SUPPORT:
@@ -109,7 +116,9 @@ class ChatApplicationService:
             result = self._customer_support_agent.handle(user_id=user_id, message=message)
         except CustomerNotFoundError:
             agents.append(AgentName.ESCALATION)
-            answer = self._escalation_agent.handle(locale=locale, reason="unknown_customer")
+            answer = self._escalation_agent.handle(
+                locale=locale, reason=EscalationReason.UNKNOWN_CUSTOMER, market=market
+            )
             return answer, [], (), True
 
         tools = list(result.tools_used)

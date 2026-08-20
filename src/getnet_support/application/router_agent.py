@@ -12,7 +12,8 @@ from getnet_support.domain.models import Route
 
 _CUSTOMER_SUPPORT_PATTERN = re.compile(
     r"\b("
-    r"maquininha|terminal|conex[ãa]o|n[ãa]o\s+conecta|offline|"
+    r"maquininha|terminal|card\s+machine|conex[ãa]o|n[ãa]o\s+conecta|"
+    r"(won.?t|can.?t|not)\s+connect|connect(ing)?\s+to\s+the\s+internet|offline|"
     r"transa[çc][ãa]o|recus\w*|declin\w*|"
     r"dep[óo]sito|deposited|vendas\s+de\s+ontem|yesterday.?s\s+sales|"
     r"minha\s+conta|my\s+account|extrato|settlement|recebimento"

@@ -16,6 +16,18 @@ def test_routes_terminal_problem_to_customer_support() -> None:
     assert route is Route.CUSTOMER_SUPPORT
 
 
+def test_routes_english_terminal_problem_to_customer_support() -> None:
+    router = RouterAgent()
+    route = router.route("My card machine won't connect to the internet, what should I do?")
+    assert route is Route.CUSTOMER_SUPPORT
+
+
+def test_routes_transaction_decline_to_customer_support() -> None:
+    router = RouterAgent()
+    route = router.route("My card machine is showing a transaction decline error.")
+    assert route is Route.CUSTOMER_SUPPORT
+
+
 def test_routes_settlement_question_to_customer_support() -> None:
     router = RouterAgent()
     route = router.route("When will the money from yesterday's sales be deposited?")

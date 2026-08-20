@@ -1,0 +1,81 @@
+[
+  {
+    "id": "eval-001",
+    "message": "What's the difference between the Get Clássica and the Get Smart?",
+    "user_id": "cliente1988",
+    "expected_route": "knowledge",
+    "expect_sources": true,
+    "expect_handoff": false
+  },
+  {
+    "id": "eval-002",
+    "message": "What's the weather forecast in Porto Alegre tomorrow?",
+    "user_id": "cliente1988",
+    "expected_route": "knowledge",
+    "expected_tool": "tavily_web_search",
+    "expect_handoff": false
+  },
+  {
+    "id": "eval-003",
+    "message": "When will the money from yesterday's sales be deposited?",
+    "user_id": "cliente1988",
+    "expected_route": "customer_support",
+    "expected_tool": "get_recent_transactions",
+    "expect_handoff": false
+  },
+  {
+    "id": "eval-004",
+    "message": "Do I need a bank account to receive my sales via Pix?",
+    "user_id": "cliente1988",
+    "expected_route": "knowledge",
+    "expect_sources": true,
+    "expect_handoff": false
+  },
+  {
+    "id": "eval-005",
+    "message": "My card machine won't connect to the internet, what should I do?",
+    "user_id": "cliente1988",
+    "expected_route": "customer_support",
+    "expected_tool": "get_terminal_status",
+    "expect_handoff": false
+  },
+  {
+    "id": "eval-006",
+    "message": "How does receivables advance (antecipação) work with Getnet?",
+    "user_id": "cliente1988",
+    "expected_route": "knowledge",
+    "expect_sources": true,
+    "expect_handoff": false
+  },
+  {
+    "id": "eval-007",
+    "message": "What's the euro exchange rate today?",
+    "user_id": "cliente1988",
+    "expected_route": "knowledge",
+    "expected_tool": "tavily_web_search",
+    "expect_handoff": false
+  },
+  {
+    "id": "eval-008",
+    "message": "My card machine is showing a transaction decline error.",
+    "user_id": "cliente2001",
+    "expected_route": "customer_support",
+    "expect_handoff": false
+  },
+  {
+    "id": "eval-009",
+    "message": "How many installments can I split a sale into with the crediário?",
+    "user_id": "cliente1988",
+    "expected_route": "knowledge",
+    "expect_sources": true,
+    "expect_handoff": false
+  },
+  {
+    "id": "eval-010",
+    "message": "Can I sell through WhatsApp using the Payment Link?",
+    "user_id": "cliente1988",
+    "expected_route": "knowledge",
+    "expect_sources": true,
+    "expect_handoff": false
+  }
+]

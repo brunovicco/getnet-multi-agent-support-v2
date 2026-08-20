@@ -28,6 +28,10 @@ class WebSearchUnavailableError(Exception):
     """Raised when the web search provider call fails or is not configured."""
 
 
+class EmbeddingGenerationError(Exception):
+    """Raised when the embedding provider fails to embed one or more texts."""
+
+
 class LLMPort(Protocol):
     """Port for grounded text generation, implemented by one provider adapter."""
 
@@ -49,10 +53,23 @@ class WebSearchPort(Protocol):
 
 
 class KnowledgeRetrieverPort(Protocol):
-    """Port for local RAG retrieval over the persisted corpus."""
+    """Port for RAG retrieval over the persisted corpus (lexical or semantic)."""
 
-    def retrieve(self, query: str, *, market: Market, top_k: int = 3) -> tuple[RetrievedChunk, ...]:
+    async def retrieve(
+        self, query: str, *, market: Market, top_k: int = 3
+    ) -> tuple[RetrievedChunk, ...]:
         """Return the top matching chunks scoped to market, best score first."""
+        ...
+
+
+class EmbeddingPort(Protocol):
+    """Port for turning text into embedding vectors, implemented by one provider adapter."""
+
+    async def embed(self, texts: tuple[str, ...]) -> tuple[tuple[float, ...], ...]:
+        """Return one embedding vector per input text, in the same order.
+
+        Raises EmbeddingGenerationError on provider failure.
+        """
         ...
 
 

@@ -50,6 +50,7 @@ See `.env.example`. Summary:
 | Variable | Purpose | Default when unset |
 |---|---|---|
 | `GOOGLE_API_KEY`, `GOOGLE_MODEL` | Gemini generation for the Knowledge Agent | Deterministic extractive fallback |
+| `GOOGLE_EMBEDDING_MODEL` | Gemini embedding model for semantic RAG | Lexical (IDF term-overlap) retrieval |
 | `TAVILY_API_KEY` | Web search for current/external questions | Reports "unavailable", never guesses |
 | `APP_ENV`, `LOG_LEVEL`, `LOG_FORMAT`, `SERVICE_NAME` | Structured logging | See `entrypoints/logging.py` |
 | `LANGFUSE_*` | Opt-in LLM call tracing (metadata-only) | Tracing disabled |
@@ -99,6 +100,9 @@ entrypoints/  FastAPI routes, Gradio Blocks UI, Pydantic schemas, logging bootst
 - **Escalation Agent** (`application/escalation_agent.py`) — the bonus fourth agent. Returns
   `handoff_required=true` for unknown customers, unsupported financial operations (refund,
   chargeback, account cancellation), unavailable web search, or insufficient RAG evidence.
+  Messages are reason-specific (`EscalationReason`: unknown customer / unsupported financial
+  operation / explicit human request) and add a real BR support channel (`4002-4000`, cited on
+  Getnet's own troubleshooting page) when `market=BR`.
 
 **Multi-agent chaining**: "Minha maquininha não conecta à internet" is routed to Customer Support
 (`get_customer_profile` + `get_terminal_status`), and when a terminal issue is detected the same
@@ -113,8 +117,7 @@ official URLs (site.getnet.com.br/ofertas/, /maquininha/*, /pix/, /link-de-pagam
   → hand-curated chunks with required metadata (id, text, title, source, market, language,
     topic, retrieved_at, volatility)
   → persisted as JSON in adapters/corpus/{getnet_br,getnet_global}.json
-  → LocalKnowledgeRetriever: tokenize (PT/EN stopword filter) → IDF-weighted term overlap,
-    scoped by market before scoring → top_k chunks + score
+  → retrieval, scoped by market before scoring (either strategy below)
   → context assembled from the top chunks → GeminiLLMAdapter (or extractive fallback)
   → answer + sources (title, url, market, retrieved_at, volatility)
 ```
@@ -123,13 +126,26 @@ No vector DB, no live crawling at startup — the corpus is a one-time, committe
 gathered via web search against the official domain at implementation time, not scraped live by
 the running service). `ofertas/` content (prices, rates, offers) is tagged `volatility: high`; the
 Knowledge Agent qualifies its answer and points to the official page instead of asserting a stale
-number as current. IDF weighting keeps a near-universal word like "Getnet" from outweighing a rare,
-discriminative term like "antecipação" — see `adapters/knowledge_retriever_local.py`.
+number as current.
+
+Two interchangeable retrieval strategies implement the same `KnowledgeRetrieverPort`:
+
+- **Lexical** (`adapters/knowledge_retriever_local.py`, always available, zero cost) — PT/EN
+  stopword-filtered tokenization, then IDF-weighted term overlap. IDF weighting keeps a
+  near-universal word like "Getnet" (present in almost every chunk) from outweighing a rare,
+  discriminative term like "antecipação" when a query happens to share both.
+- **Semantic** (`adapters/knowledge_retriever_semantic.py`, used automatically when
+  `GOOGLE_API_KEY` is set) — every chunk is embedded once at startup via
+  `adapters/embeddings_gemini.py` (Gemini `batchEmbedContents`, no vendor SDK), then each query is
+  embedded and ranked by cosine similarity (`top_k = 3`, minimum score `0.3`). If the embedding
+  call fails at startup (bad key, network down), the service logs a warning and falls back to the
+  lexical retriever instead of failing to boot — verified with `GOOGLE_API_KEY=invalid`.
 
 Retrieval is always filtered by `market` **before** scoring, so a `BR` request can never surface a
-`GLOBAL` chunk or vice versa (tested in `tests/unit/test_knowledge_retriever_local.py` and at the
-API level in `test_chat_api.py`). Language and market are independent request dimensions: an
-English question with `market=BR` still answers from the Brazilian corpus.
+`GLOBAL` chunk or vice versa (tested for both strategies in `tests/unit/test_knowledge_retriever_local.py`,
+`test_knowledge_retriever_semantic.py`, and at the API level in `test_chat_api.py`). Language and
+market are independent request dimensions: an English question with `market=BR` still answers from
+the Brazilian corpus.
 
 ## LLM provider and web search
 
@@ -163,13 +179,22 @@ the agents):
   `handoff_required=true`.
 - An unknown `user_id` raises `CustomerNotFoundError` from the data port and is escalated — never
   answered with placeholder or inferred customer data.
+- Retrieved chunks and web-search results are explicitly framed to the LLM as **untrusted data,
+  not instructions** — the system prompt tells it to ignore any command embedded inside a chunk or
+  search result (basic prompt-injection defense; see `_UNTRUSTED_CONTENT_GUARDRAIL` in
+  `knowledge_agent.py`).
 
 ## UI
 
 Gradio Blocks (`entrypoints/ui_gradio.py`), mounted on the FastAPI app at `/`. Lets you pick a fake
 `user_id` (`cliente1988`, `cliente2001`, or type your own to see escalation), a language (pt-BR /
-en), and a market (BR / GLOBAL); shows the answer, cited sources (with volatility markers), the
-route, the agent chain, the tools called, the handoff flag, latency, and a trace ID.
+en), and a market (BR / GLOBAL); shows the answer, cited sources (with volatility markers), a
+handoff badge, the route, the agent chain, the tools called, latency, and a trace ID — all labels
+bilingual (pt-BR / en). Built-in loading state on submit; an error state (never a raw traceback)
+if `chat_service.handle` raises unexpectedly. The red accent and "Getnet" wordmark are a best-effort
+approximation of the dominant color observed on `getnet.net/en` (icon/asset naming read as
+red-on-white) — no brand-guideline document was available, so this is inspired by, not copied
+from, an official asset.
 
 ## Bilingual behavior
 
@@ -186,18 +211,30 @@ verbatim rather than translating it — full bilingual fidelity requires `GOOGLE
 uv run pytest
 ```
 
-52 tests, 94% coverage, no real network (Gemini/Tavily calls use `httpx.MockTransport` or fake
-ports — see `tests/unit/test_llm_gemini.py`, `test_web_search_tavily.py`, `test_chat_api.py`).
-Covers: the full `POST /chat` contract, product-question RAG with sources, web-search success and
-"unavailable" fallback, the settlement and terminal-status tools, the terminal → RAG chain, unknown
-user → escalation with no fabricated data, PT/EN responses, BR/GLOBAL market isolation in both
-directions, unsupported-financial-operation escalation, and `/health` / `/` smoke tests.
+73 tests, 93% coverage, no real network (Gemini/Tavily/embedding calls use `httpx.MockTransport`
+or fake ports — see `tests/unit/test_llm_gemini.py`, `test_web_search_tavily.py`,
+`test_embeddings_gemini.py`, `test_chat_api.py`). Covers: the full `POST /chat` contract,
+product-question RAG with sources (lexical and semantic), web-search success and "unavailable"
+fallback, the settlement and terminal-status tools, the terminal → RAG chain, unknown user →
+escalation with no fabricated data, reason-specific escalation messages, PT/EN responses, BR/GLOBAL
+market isolation in both directions (for both retrieval strategies), unsupported-financial-operation
+escalation, and `/health` / `/` smoke tests.
+
+### Evaluation dataset
+
+`evaluation/scenarios.json` holds the challenge brief's own 10 example scenarios (verbatim), each
+with an expected route/tool/handoff outcome. `tests/unit/test_eval_scenarios.py` runs every one of
+them against the wired system as a parametrized regression test — this is what caught a real router
+bug during implementation (the English phrasing "My card machine won't connect to the internet"
+was silently misrouted to the Knowledge Agent instead of Customer Support; fixed in
+`router_agent.py`). Extend the dataset by adding entries to the JSON file — no code changes needed.
 
 ## Limitations and evolution to production
 
-- **Retrieval** is IDF-weighted term overlap, not embeddings — good enough for a ~13-chunk corpus,
-  but a paraphrased question with no shared vocabulary can miss. Next step: `EmbeddingPort` +
-  Gemini embeddings + cosine similarity, same corpus and chunk metadata.
+- **Semantic retrieval** re-embeds the whole corpus at every process startup (one batched call,
+  ~13-16 chunks) rather than caching vectors to disk — fine for this corpus size, but a production
+  deployment with a larger or frequently-changing corpus would persist embeddings and only
+  re-embed changed chunks.
 - **Corpus** is a hand-curated snapshot (gathered via web search at implementation time, not a live
   crawl), not a scheduled ingestion pipeline. Production would add a periodic re-ingestion job with
   content diffing and a review step before republishing `volatility: high` content.

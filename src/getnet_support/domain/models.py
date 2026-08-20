@@ -39,6 +39,14 @@ class Route(StrEnum):
     ESCALATION = "escalation"
 
 
+class EscalationReason(StrEnum):
+    """Why the Escalation Agent was invoked; drives the specific handoff message."""
+
+    UNKNOWN_CUSTOMER = "unknown_customer"
+    UNSUPPORTED_FINANCIAL_OPERATION = "unsupported_financial_operation"
+    EXPLICIT_HUMAN_REQUEST = "explicit_human_request"
+
+
 @dataclass(frozen=True, slots=True)
 class Source:
     """One cited knowledge source shown to the user."""
