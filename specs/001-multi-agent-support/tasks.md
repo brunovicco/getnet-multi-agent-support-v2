@@ -4,7 +4,7 @@ O eval já existe em `tests/acceptance/` antes do T01. Ele é o alvo, não o res
 Regra de corte: se um slice estourar sua janela, entregue o anterior verde e siga.
 
 | ID | Slice | Janela | REQs | Pronto quando |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | T01 | Contratos + `Settings` + `/health` de capacidade | 00–04 | 01,02,03,23,24 | `test_contract_*` verde |
 | T02 | Corpus curado + retriever léxico + gate de evidência | 04–12 | 09,14,15 | `test_eval_dataset_lexical` verde |
 | T03 | Router + orchestrator | 12–18 | 05,06,07,08 | acurácia de rota 1.00 |
@@ -18,7 +18,9 @@ Regra de corte: se um slice estourar sua janela, entregue o anterior verde e sig
 
 ## Pós-cutoff (rodada de hardening, commits após a tag)
 
-P1.1 retriever semântico — **só entra com REQ-16 (paridade) verde**
+P1.1 retriever semântico com **embeddings de modelo real** (Gemini `text-embedding`) — o modo
+semântico local (hash + cosseno, sem chave) já foi implementado no T02 com REQ-16 (paridade)
+verde offline; P1.1 é só a evolução para embeddings de verdade, ver `plan.md` D11.
 P1.2 branding Getnet na UI
 P1.3 chaining Support→Knowledge ("maquininha não conecta")
 

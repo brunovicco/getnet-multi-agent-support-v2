@@ -37,7 +37,6 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 USER app
 
-# Replace this framework-neutral placeholder with the project's entrypoint, for example:
-#   CMD ["uvicorn", "getnet_support.entrypoints.http:app", "--host", "0.0.0.0", "--port", "8000"]
-#   CMD ["python", "-m", "getnet_support"]
-CMD ["python", "-c", "import getnet_support; print(getnet_support.__doc__)"]
+EXPOSE 8000
+
+CMD ["uvicorn", "getnet_support.entrypoints.http:build_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

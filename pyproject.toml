@@ -103,6 +103,11 @@ disallow_untyped_decorators = false
 module = ["langfuse"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# tavily-python ships no py.typed marker / stubs as of the pinned version.
+module = ["tavily", "tavily.errors"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers --cov=src/getnet_support --cov-report=term-missing -m 'not live'"
 testpaths = ["tests"]

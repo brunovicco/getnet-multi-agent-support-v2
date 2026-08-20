@@ -59,7 +59,8 @@ def _ask(client: TestClient, case: dict[str, Any]) -> dict[str, Any]:
             payload[optional] = case[optional]
     response = client.post("/chat", json=payload)
     assert response.status_code == 200, response.text
-    return response.json()
+    body: dict[str, Any] = response.json()
+    return body
 
 
 # --------------------------------------------------------------------------- contratos
@@ -131,7 +132,7 @@ def test_eval_dataset_source_provenance(client: TestClient, case_id: str) -> Non
         assert _ask(client, case)["grounding"] == expect["grounding_offline"]
 
 
-@pytest.mark.parametrize("case_id", _ids("OOS-") + ["OF-02", "OF-07"])
+@pytest.mark.parametrize("case_id", [*_ids("OOS-"), "OF-02", "OF-07"])
 def test_no_evidence_reaches_web_step(client: TestClient, case_id: str) -> None:
     """REQ-09/REQ-10: o gate rejeita a KB e a cadeia chega ao passo de web.
 
