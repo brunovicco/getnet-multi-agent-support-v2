@@ -187,6 +187,17 @@ sources come up empty does it report insufficient evidence and let the orchestra
 `tests/unit/test_knowledge_agent.py`, which assert both directions: a good RAG match never touches
 web search (no wasted Tavily calls), and anything RAG can't answer always does.
 
+**A retrieval score alone is not proof of relevance.** Semantic (embedding) similarity in
+particular can cross the minimum-score threshold for a completely unrelated query against a tiny
+corpus — caught live: "quem foi Maradona?" scored above the cosine threshold against payment-
+product chunks, so the RAG path *would* have returned "the context doesn't mention Maradona" as a
+resolved answer. The fix doesn't touch the threshold (guessing a new number without real traffic
+to calibrate against just relocates the bug); instead, the system prompt asks the LLM to respond
+with an exact, greppable `NO_EVIDENCE_IN_CONTEXT` sentinel whenever the retrieved context doesn't
+actually answer the question, and the orchestrator treats that the same as an empty retrieval —
+falling back to web search rather than presenting a non-answer as resolved. See
+`test_high_retrieval_score_alone_does_not_override_the_llms_own_judgment`.
+
 ### Degraded mode (no provider keys)
 
 The service starts and answers every scenario with **zero** environment variables set: product
