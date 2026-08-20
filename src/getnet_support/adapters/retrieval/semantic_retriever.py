@@ -55,7 +55,7 @@ class SemanticRetriever:
         }
 
     def search(
-        self, query: str, *, market: Market | None = None, top_k: int = 3
+        self, query: str, *, market: Market | None = None, top_k: int = 20
     ) -> list[RetrievedChunk]:
         """Rank corpus chunks by cosine similarity, restricted to `market` if given."""
         query_vector = _hash_vector(content_terms(query))

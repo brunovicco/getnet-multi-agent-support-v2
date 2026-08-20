@@ -75,13 +75,28 @@ class KnowledgeAgent:
 
     def answer(self, query: str, *, market: Market | None, language: Language) -> KnowledgeResult:
         """Answer `query`, grounded in the corpus first, the web second."""
+        kb_result = self.try_grounded_in_corpus(query, market=market, language=language)
+        if kb_result is not None:
+            return kb_result
+        return self._answer_from_web(query, language=language)
+
+    def try_grounded_in_corpus(
+        self, query: str, *, market: Market | None, language: Language
+    ) -> KnowledgeResult | None:
+        """Return a KB-grounded answer if the evidence gate accepts, else `None`.
+
+        Never attempts a web search — used both by `answer()` and by P1.3's
+        Support→Knowledge chaining, where a wasted or surprising external
+        call on a customer-support turn would be an unwanted side effect
+        (REQ-11's cost discipline applies here too).
+        """
         candidates = self._retriever.search(query, market=market)
         accepted = best_accepted(
             candidates, score_min=self._score_min, coverage_min=self._coverage_min
         )
-        if accepted is not None:
-            return self._answer_from_kb(query, accepted, language=language)
-        return self._answer_from_web(query, language=language)
+        if accepted is None:
+            return None
+        return self._answer_from_kb(query, accepted, language=language)
 
     def _answer_from_kb(
         self, query: str, candidate: RetrievedChunk, *, language: Language

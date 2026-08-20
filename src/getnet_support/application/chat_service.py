@@ -17,6 +17,11 @@ from getnet_support.domain.chat import GroundingOrigin, Language, Market, Route,
 
 from .dto import ChatResult
 
+_CHAIN_PREFIX = {
+    Language.PT_BR: "Isso também pode ajudar:",
+    Language.EN: "This might also help:",
+}
+
 
 class ChatApplicationService:
     """Coordinates agents to answer one chat message."""
@@ -47,6 +52,7 @@ class ChatApplicationService:
         started = time.perf_counter()
         language = Language(locale) if locale else detect_language(message)
         decision = self._router.route(message)
+        agents = ["router", decision.route.value]
 
         if decision.route is Route.KNOWLEDGE:
             knowledge_result = self._knowledge_agent.answer(
@@ -68,6 +74,18 @@ class ChatApplicationService:
             grounding = support_result.grounding
             web_search_attempted = False
             handoff_required = support_result.handoff_required
+
+            # P1.3: chain to the Knowledge Agent's corpus-only path (never the
+            # web) when Customer Support found a real problem a KB article
+            # could supplement, e.g. a disconnected terminal.
+            if support_result.chain_to_knowledge:
+                kb_result = self._knowledge_agent.try_grounded_in_corpus(
+                    message, market=Market(market) if market else None, language=language
+                )
+                if kb_result is not None:
+                    answer = f"{answer}\n\n{_CHAIN_PREFIX[language]} {kb_result.answer}"
+                    sources = kb_result.sources
+                    agents.append("knowledge")
         else:
             escalation_result = self._escalation_agent.answer(language=language)
             answer = escalation_result.answer
@@ -83,7 +101,7 @@ class ChatApplicationService:
             answer=answer,
             language=language,
             route=decision.route,
-            agents=["router", decision.route.value],
+            agents=agents,
             tools=tools,
             sources=sources,
             handoff_required=handoff_required,

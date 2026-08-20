@@ -204,18 +204,40 @@ def _canonicalize(token: str) -> str:
 
 
 def _stem(token: str) -> str:
-    """Crude prefix stem tolerating PT/EN inflection (`parcelar`/`parcelas`)."""
+    """Crude stem tolerating PT/EN inflection (`parcelar`/`parcelas`).
+
+    Strips one trailing plural "s" before the prefix cut. Without it, a
+    short singular root and its plural never collide: a 5-char prefix does
+    nothing for either "taxa" (4 chars, too short to truncate) or "taxas"
+    (exactly 5 chars, also untouched) — they compare as two different
+    strings and a query like "qual a taxa de débito?" fails coverage against
+    a chunk that only says "taxas" (bug found via manual testing against the
+    real corpus, not by the eval dataset, which happens to only use words
+    long enough for the prefix alone to unify).
+    """
+    if len(token) > 3 and token.endswith("s"):
+        token = token[:-1]
     return token[:_STEM_PREFIX_LEN]
 
 
 def content_terms(text: str) -> list[str]:
-    """Extract canonicalized, non-stopword terms from free text."""
-    return [
-        canonical
-        for raw in _TOKEN_RE.findall(text)
-        for canonical in (_canonicalize(raw),)
-        if canonical not in _STOPWORDS and len(canonical) > 2
-    ]
+    """Extract canonicalized, stemmed, non-stopword terms from free text.
+
+    Stemming happens here, not only in `coverage_lexical`, so that the
+    retrievers' bag-of-words/hashed vectors (both built from this same
+    function) see "taxa" and "taxas" as one vocabulary entry too — otherwise
+    `coverage_lexical` could accept a chunk that `score_retrieval` scores as
+    a near-zero match on the same pair of terms, and the evidence gate's
+    `AND` would reject anyway (found via manual testing: "qual a taxa de
+    débito?" against a chunk that only says "taxas").
+    """
+    terms = []
+    for raw in _TOKEN_RE.findall(text):
+        canonical = _canonicalize(raw)
+        if canonical in _STOPWORDS or len(canonical) <= 2:
+            continue
+        terms.append(_stem(canonical))
+    return terms
 
 
 def coverage_lexical(query: str, chunk_text: str) -> float:
@@ -223,6 +245,6 @@ def coverage_lexical(query: str, chunk_text: str) -> float:
     query_terms = content_terms(query)
     if not query_terms:
         return 0.0
-    chunk_stems = {_stem(term) for term in content_terms(chunk_text)}
-    covered = sum(1 for term in query_terms if _stem(term) in chunk_stems)
+    chunk_terms = set(content_terms(chunk_text))
+    covered = sum(1 for term in query_terms if term in chunk_terms)
     return covered / len(query_terms)

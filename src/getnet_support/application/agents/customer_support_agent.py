@@ -46,12 +46,20 @@ _CROSS_CUSTOMER_MESSAGE = {
 
 @dataclass(frozen=True, slots=True)
 class CustomerSupportResult:
-    """What the Customer Support Agent produced for one query."""
+    """What the Customer Support Agent produced for one query.
+
+    `chain_to_knowledge` (P1.3) signals that a real problem was found (e.g.
+    a disconnected terminal) that a matching KB troubleshooting article
+    could supplement. The orchestrator (`ChatApplicationService`) decides
+    whether to actually chain — this agent has no Knowledge Agent
+    dependency, only the signal.
+    """
 
     answer: str
     tools: list[str]
     grounding: GroundingOrigin
     handoff_required: bool
+    chain_to_knowledge: bool = False
 
 
 class CustomerSupportAgent:
@@ -83,11 +91,13 @@ class CustomerSupportAgent:
 
         if any(pattern.search(message) for pattern in _TERMINAL_PATTERNS):
             status = self._customer_data.get_terminal_status(user_id)
+            has_a_real_problem = status is not None and not status.connected
             return CustomerSupportResult(
                 answer=self._describe_terminal(status, language=language),
                 tools=["get_terminal_status"],
                 grounding=GroundingOrigin.CUSTOMER_DATA,
                 handoff_required=False,
+                chain_to_knowledge=has_a_real_problem,
             )
 
         if any(pattern.search(message) for pattern in _TRANSACTION_PATTERNS):

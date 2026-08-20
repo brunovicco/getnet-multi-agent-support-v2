@@ -18,11 +18,15 @@ Regra de corte: se um slice estourar sua janela, entregue o anterior verde e sig
 
 ## Pós-cutoff (rodada de hardening, commits após a tag)
 
-P1.1 retriever semântico com **embeddings de modelo real** (Gemini `text-embedding`) — o modo
-semântico local (hash + cosseno, sem chave) já foi implementado no T02 com REQ-16 (paridade)
-verde offline; P1.1 é só a evolução para embeddings de verdade, ver `plan.md` D11.
-P1.2 branding Getnet na UI
-P1.3 chaining Support→Knowledge ("maquininha não conecta")
+P1.1 retriever semântico com **embeddings de modelo real** (Gemini `text-embedding-004`) —
+**concluído** pós-cutoff via `GeminiSemanticRetriever` (`RETRIEVER=semantic_embeddings`),
+aditivo ao modo `semantic` local (hash + cosseno, T02), sem tocar a paridade REQ-16 já verde
+para `lexical`/`semantic`. Ver `plan.md` D11.
+P1.2 branding Getnet na UI — **concluído** pós-cutoff (`entrypoints/ui.py:build_theme`,
+`CUSTOM_CSS`, cabeçalho/rodapé de marca). Ver `plan.md` D17.
+P1.3 chaining Support→Knowledge ("maquininha não conecta") — **concluído** pós-cutoff via
+`CustomerSupportResult.chain_to_knowledge` + `KnowledgeAgent.try_grounded_in_corpus`
+(corpus-only, nunca web). Ver `plan.md` D18.
 
 ## Cenários de demonstração (vídeo)
 
