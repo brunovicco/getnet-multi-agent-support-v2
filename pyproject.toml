@@ -5,9 +5,15 @@ description = "Python service generated from the Claude Code engineering harness
 readme = "README.md"
 requires-python = ">=3.13,<3.15"
 dependencies = [
+    "fastapi>=0.141.1",
+    "google-genai>=2.19.0",
+    "gradio>=6.25.0",
+    "httpx>=0.28.1",
     "pydantic>=2.11",
     "pydantic-settings>=2.8",
     "structlog>=25.1",
+    "tavily-python>=0.7.27",
+    "uvicorn>=0.52.4",
 ]
 
 [project.optional-dependencies]
@@ -97,10 +103,26 @@ disallow_untyped_decorators = false
 module = ["langfuse"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# gradio synthesizes component event methods (.click()/.submit()/...) from
+# each component's EVENTS list via a metaclass at runtime. Whether mypy
+# resolves them statically is environment-dependent with identical locked
+# dependency versions (reproduced: fails on the Linux CI runner, passes
+# locally on macOS) - disable unused-ignore here so this file type-checks
+# cleanly either way instead of flip-flopping between environments.
+module = ["getnet_support.entrypoints.ui"]
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+# tavily-python ships no py.typed marker / stubs as of the pinned version.
+module = ["tavily", "tavily.errors"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
-addopts = "--strict-config --strict-markers --cov=src/getnet_support --cov-report=term-missing"
+addopts = "--strict-config --strict-markers --cov=src/getnet_support --cov-report=term-missing -m 'not live'"
 testpaths = ["tests"]
 markers = [
+    "live: smoke com API keys reais (nao roda no quality gate)",
     "integration: tests that require real infrastructure",
     "contract: tests that verify an interface contract",
     "e2e: critical end-to-end tests",

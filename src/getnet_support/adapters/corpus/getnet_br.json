@@ -1,0 +1,112 @@
+[
+  {
+    "id": "br-ofertas-pricing",
+    "title": "Ofertas Getnet — mensalidades e taxas",
+    "source": "https://site.getnet.com.br/ofertas/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "ofertas",
+    "retrieved_at": "2026-08-19",
+    "volatility": "high",
+    "text": "A oferta atual da Getnet lista a Get Clássica por R$ 79,90/mês e a Get Smart por R$ 129,90/mês, com recebimento em 2 dias úteis para negócios com faturamento acima de R$ 2.000/mês na maquininha. As taxas por transação partem de 1,69% no débito e 3,79% no crédito à vista, sujeitas a alteração conforme o perfil e volume do estabelecimento."
+  },
+  {
+    "id": "br-get-classica",
+    "title": "Get Clássica",
+    "source": "https://site.getnet.com.br/maquininha/get-classica/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "produtos",
+    "retrieved_at": "2026-08-19",
+    "volatility": "low",
+    "text": "A Get Clássica é a maquininha POS 3G + Wi-Fi de entrada da Getnet, indicada para negócios com menor volume de transações. Aceita cartões por aproximação, chip e Pix, com manutenção vitalícia inclusa e plano de dados próprio para funcionar de forma autônoma."
+  },
+  {
+    "id": "br-get-smart",
+    "title": "Get Smart",
+    "source": "https://site.getnet.com.br/maquininha/get-smart/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "produtos",
+    "retrieved_at": "2026-08-19",
+    "volatility": "low",
+    "text": "A Get Smart é a maquininha inteligente da Getnet, com tela touchscreen, leitor de chip, tarja e NFC, conectividade 4G/Wi-Fi/Bluetooth e mais de 150 aplicativos adicionais (cashback, giftback, controle de estoque, gestão). Também funciona como solução TEF integrada ao PDV do estabelecimento."
+  },
+  {
+    "id": "br-pix",
+    "title": "Pix na Getnet",
+    "source": "https://site.getnet.com.br/pix/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "pix",
+    "retrieved_at": "2026-08-19",
+    "volatility": "low",
+    "text": "As maquininhas Getnet aceitam vendas via Pix, com confirmação e recebimento em tempo real. Para receber os valores é preciso habilitar a funcionalidade no Portal Minha Conta ou no app Getnet Brasil e selecionar a instituição bancária de destino — ou seja, é necessária uma conta bancária (própria ou a Get Conta da Getnet) vinculada para receber."
+  },
+  {
+    "id": "br-link-pagamento",
+    "title": "Link de Pagamento",
+    "source": "https://site.getnet.com.br/link-de-pagamento/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "link_pagamento",
+    "retrieved_at": "2026-08-19",
+    "volatility": "low",
+    "text": "O Link de Pagamento da Getnet permite vender sem maquininha: o lojista gera um link de cobrança configurável para débito, crédito parcelado, Pix ou carteiras digitais, e envia por WhatsApp, redes sociais, e-mail ou qualquer canal digital. É a forma suportada hoje de vender por WhatsApp."
+  },
+  {
+    "id": "br-whatsapp-descontinuado",
+    "title": "WhatsApp Business Payments descontinuado",
+    "source": "https://site.getnet.com.br/get-ajuda-whatsapp-business/descontinuacao-whatsapp-business/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "link_pagamento",
+    "retrieved_at": "2026-08-19",
+    "volatility": "medium",
+    "text": "A Getnet descontinuou o recurso nativo de pagamentos dentro do WhatsApp Business (WhatsApp Business Payments). A venda via WhatsApp continua possível através do envio de um Link de Pagamento comum pelo aplicativo, e não pela integração nativa descontinuada."
+  },
+  {
+    "id": "br-antecipacao",
+    "title": "Antecipação de recebíveis",
+    "source": "https://site.getnet.com.br/quando-vale-a-pena-antecipar-as-suas-vendas-no-cartao/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "antecipacao",
+    "retrieved_at": "2026-08-19",
+    "volatility": "medium",
+    "text": "A antecipação de recebíveis permite receber o valor de vendas parceladas no crédito antes do prazo original, em até 1 dia útil após a solicitação, mediante uma taxa de antecipação descontada do valor líquido. É uma alternativa a empréstimos com juros mais altos para cobrir despesas do dia a dia do negócio."
+  },
+  {
+    "id": "br-crediario",
+    "title": "Crediário Getnet",
+    "source": "https://site.getnet.com.br/crediario/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "crediario",
+    "retrieved_at": "2026-08-19",
+    "volatility": "medium",
+    "text": "O Crediário Getnet permite parcelar uma venda em até 48 vezes para o cliente final, com o lojista recebendo o valor em até 2 dias úteis. A taxa do crediário integra o contrato de adesão ao Sistema Getnet e o limite de parcelas segue a política de crédito de cada emissor."
+  },
+  {
+    "id": "br-troubleshooting-wifi",
+    "title": "Maquininha sem conexão Wi-Fi/internet",
+    "source": "https://site.getnet.com.br/get-ajuda-configuracoes/como-configurar-o-wi-fi-na-sua-maquininha-getnet/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "troubleshooting",
+    "retrieved_at": "2026-08-19",
+    "volatility": "low",
+    "text": "Quando a maquininha não conecta à internet, o suporte oficial recomenda acessar as configurações de conexão do equipamento, buscar as redes Wi-Fi disponíveis, selecionar a rede correta e inserir a senha para reconectar. Máquinas com chip de dados próprio (GPRS/3G/4G) funcionam de forma autônoma e não dependem de Wi-Fi, mas também podem apresentar instabilidade de sinal."
+  },
+  {
+    "id": "br-troubleshooting-erros",
+    "title": "Erros de transação e comunicação",
+    "source": "https://site.getnet.com.br/get-ajuda-erros-maquininha/",
+    "market": "BR",
+    "language": "pt-BR",
+    "topic": "troubleshooting",
+    "retrieved_at": "2026-08-19",
+    "volatility": "low",
+    "text": "A central de ajuda da Getnet mantém um catálogo de erros da maquininha (por exemplo, o erro S-2074, de comunicação) com passo a passo de resolução. Para problemas persistentes de conexão ou transação recusada, o suporte técnico pode ser acionado pelo telefone 4002-4000 ou pelo WhatsApp."
+  }
+]
