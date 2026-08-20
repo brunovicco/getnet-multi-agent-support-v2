@@ -7,7 +7,9 @@ instance, with no internal HTTP hop between them.
 
 import asyncio
 import os
-from typing import cast
+from collections.abc import Coroutine
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, cast
 
 import gradio as gr
 import structlog
@@ -100,9 +102,25 @@ async def build_chat_service() -> ChatApplicationService:
     )
 
 
+def _run_sync[T](coro: Coroutine[Any, Any, T]) -> T:
+    """Run an async build step from sync code, whether or not a loop is already running.
+
+    `uvicorn --reload` (and multi-worker mode) re-imports this module inside a subprocess whose
+    event loop is already running by the time the import happens, so a plain `asyncio.run()` here
+    would raise `RuntimeError: asyncio.run() cannot be called from a running event loop`. Bridge
+    that case by running the coroutine on its own loop in a worker thread instead.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
+
+
 def create_app(chat_service: ChatApplicationService | None = None) -> FastAPI:
     """Build the FastAPI application: API routes first, then the mounted Gradio UI at `/`."""
-    service = chat_service or asyncio.run(build_chat_service())
+    service = chat_service or _run_sync(build_chat_service())
     fastapi_app = FastAPI(title="Getnet Multi-Agent Support", version="0.1.0")
 
     @fastapi_app.get("/health")
