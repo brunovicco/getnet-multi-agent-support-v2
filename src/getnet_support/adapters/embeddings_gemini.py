@@ -2,6 +2,10 @@
 
 Calls the Gemini `batchEmbedContents` REST endpoint directly via httpx, keeping the runtime
 dependency surface minimal — same pattern as `llm_gemini.py`.
+
+The API key is sent as the `x-goog-api-key` header, never as a `?key=` query parameter: httpx's
+own request logger prints the full request URL at INFO level, so a query-string key would land in
+every log stream (including this project's default JSON stdout logs) even without DEBUG logging.
 """
 
 import httpx
@@ -51,7 +55,7 @@ class GeminiEmbeddingAdapter(EmbeddingPort):
             ) as client:
                 response = await client.post(
                     f"{_BASE_URL}/{self._model}:batchEmbedContents",
-                    params={"key": self._api_key},
+                    headers={"x-goog-api-key": self._api_key},
                     json=payload,
                 )
                 response.raise_for_status()

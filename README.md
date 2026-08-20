@@ -163,6 +163,12 @@ the Brazilian corpus.
   failed call, → the agent reports the information as unavailable. Only the free-text question is
   ever sent to Tavily — never `user_id` or customer data.
 
+**Credential handling**: the Gemini API key is sent as an `x-goog-api-key` request header, never
+as a `?key=` query parameter. This was a real bug caught during manual testing: `httpx` logs the
+full request URL at **INFO** level by default (not just DEBUG), so a query-string key would have
+leaked into every log stream, including the app's default JSON stdout logs. See
+`test_api_key_is_sent_as_header_never_in_the_url` in `test_llm_gemini.py`/`test_embeddings_gemini.py`.
+
 ### Why web search is a mandatory fallback, not a keyword-gated branch
 
 An earlier version decided "is this a current-info question?" with a regex (`weather|forecast|

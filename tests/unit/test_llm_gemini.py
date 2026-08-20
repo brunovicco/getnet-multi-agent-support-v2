@@ -46,3 +46,23 @@ def test_generate_raises_llm_error_on_malformed_response() -> None:
     adapter = _adapter(handler)
     with pytest.raises(LLMGenerationError):
         asyncio.run(adapter.generate(system_prompt="sys", user_prompt="hi", locale=Locale.EN))
+
+
+def test_api_key_is_sent_as_header_never_in_the_url() -> None:
+    """Regression test: httpx logs the full request URL at INFO level, so a `?key=` query
+    parameter would leak the API key into every log stream. The key must only ever appear in a
+    request header.
+    """
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "ok"}]}}]})
+
+    adapter = _adapter(handler)
+    asyncio.run(adapter.generate(system_prompt="sys", user_prompt="hi", locale=Locale.EN))
+
+    assert len(captured) == 1
+    request = captured[0]
+    assert "test-key" not in str(request.url)
+    assert request.headers["x-goog-api-key"] == "test-key"
