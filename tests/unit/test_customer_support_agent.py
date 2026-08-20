@@ -51,3 +51,24 @@ def test_transaction_intent_calls_the_transactions_tool() -> None:
     )
     assert result.tools == ["get_recent_transactions"]
     assert result.grounding is GroundingOrigin.CUSTOMER_DATA
+    assert result.chain_to_knowledge is False
+
+
+def test_disconnected_terminal_signals_a_knowledge_chain() -> None:
+    """P1.3: a real terminal problem (cliente1988 is disconnected) signals chaining."""
+    result = _agent().answer(
+        "My card machine won't connect to the internet, what should I do?",
+        user_id="cliente1988",
+        language=Language.EN,
+    )
+    assert result.chain_to_knowledge is True
+
+
+def test_healthy_terminal_never_signals_a_knowledge_chain() -> None:
+    """P1.3: nothing to troubleshoot -> no chaining signal (cliente2001 is connected)."""
+    result = _agent().answer(
+        "My card machine won't connect to the internet, what should I do?",
+        user_id="cliente2001",
+        language=Language.EN,
+    )
+    assert result.chain_to_knowledge is False

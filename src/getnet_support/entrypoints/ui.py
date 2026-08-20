@@ -13,6 +13,77 @@ from getnet_support.application.dto import ChatResult
 _MARKET_CHOICES = ["", "BR", "GLOBAL"]
 _LOCALE_CHOICES = ["", "pt-BR", "en"]
 
+# Getnet's brand orange, approximated (P1.2 — this UI has no network access to Getnet's
+# official brand guidelines, so treat this as "in the spirit of," not a verified hex).
+_GETNET_ORANGE = "#FF6A13"
+_GETNET_ORANGE_DARK = "#C94F00"
+
+CUSTOM_CSS = f"""
+.getnet-header {{
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.5rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, {_GETNET_ORANGE} 0%, {_GETNET_ORANGE_DARK} 100%);
+    color: white;
+}}
+.getnet-badge {{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 8px;
+    background: white;
+    color: {_GETNET_ORANGE_DARK};
+    font-weight: 800;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}}
+.getnet-title {{
+    font-weight: 700;
+    font-size: 1.15rem;
+    line-height: 1.2;
+}}
+.getnet-subtitle {{
+    font-size: 0.85rem;
+    opacity: 0.9;
+}}
+.getnet-footer {{
+    text-align: center;
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin-top: 0.5rem;
+}}
+"""
+
+_HEADER_HTML = """
+<div class="getnet-header">
+    <div class="getnet-badge">G</div>
+    <div>
+        <div class="getnet-title">Getnet Multi-Agent Support</div>
+        <div class="getnet-subtitle">Router · Knowledge (RAG) · Customer Support · Escalation</div>
+    </div>
+</div>
+"""
+
+_FOOTER_HTML = (
+    '<div class="getnet-footer">Multi-agent reference implementation for Getnet — '
+    "not an official Getnet product.</div>"
+)
+
+
+def build_theme() -> gr.Theme:
+    """Build the Getnet-orange theme.
+
+    Applied at mount time (`gr.mount_gradio_app(..., theme=..., css=...)` in
+    `entrypoints/http.py`), not on the `Blocks` constructor — Gradio 6 moved
+    theme/css there for apps that are mounted rather than `.launch()`-ed.
+    """
+    return gr.themes.Soft(primary_hue="orange", neutral_hue="slate")
+
 
 def _render_panel(result: ChatResult) -> str:
     """Render the REQ-27 execution panel as Markdown."""
@@ -70,7 +141,7 @@ def build_ui(chat_service: ChatApplicationService) -> gr.Blocks:
 
     demo = gr.Blocks(title="Getnet Support")
     with demo:
-        gr.Markdown("# Getnet Multi-Agent Support")
+        gr.HTML(_HEADER_HTML)
         with gr.Row():
             with gr.Column(scale=2):
                 chatbot = gr.Chatbot(label="Chat", height=420)
@@ -87,6 +158,7 @@ def build_ui(chat_service: ChatApplicationService) -> gr.Blocks:
                 execution_panel = gr.Markdown()
                 gr.Markdown("### Sources")
                 sources_panel = gr.Markdown()
+        gr.HTML(_FOOTER_HTML)
 
         inputs = [message_box, chatbot, user_id_box, market_box, locale_box]
         outputs = [chatbot, message_box, execution_panel, sources_panel]

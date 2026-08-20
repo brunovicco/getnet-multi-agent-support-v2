@@ -40,15 +40,24 @@ Registradas aqui conforme foram necessárias, sem reabrir D1-D10 acima.
 | D14 | Isolamento cross-customer é uma regra determinística no `CustomerSupportAgent` (regex `cliente\d+` ≠ `user_id` autenticado, checada antes de qualquer tool call) | REQ-08/19: isolamento entre clientes nunca pode depender do LLM nem de instrução de prompt |
 | D15 | `Volatility` mantém os 3 níveis (`low/medium/high`) já presentes no corpus commitado | REQ-02 lista `low`/`high` como exemplo, não como teto; nenhum teste do eval trava no valor exato |
 
+## Decisões pós-cutoff (hardening)
+
+| # | Decisão | Razão |
+| --- | --- | --- |
+| D16 | `RETRIEVER=semantic_embeddings` (P1.1) é um modo aditivo, nunca o default, e cai para `SemanticRetriever` local se faltar chave ou a chamada de embedding falhar na inicialização | REQ-16 (paridade offline de `lexical`/`semantic`) não pode regredir; REQ-24 (nunca crashar por falta de chave) vale também para P1 |
+| D17 | Branding Getnet (P1.2) é só tema/CSS + wordmark textual, sem logo copiado | Não há acesso a ativos de marca oficiais nesta sessão; usar o nome da empresa é normal, reproduzir o logo sem verificação não |
+| D18 | Chaining Support→Knowledge (P1.3) usa `KnowledgeAgent.try_grounded_in_corpus` (só corpus, nunca web) e o orquestrador decide se encadeia via um sinal booleano (`chain_to_knowledge`) no resultado do Support, não uma dependência direta entre os agentes | Um efeito colateral de busca web não solicitado numa resposta de suporte seria uma surpresa de custo; `CustomerSupportAgent` não deve conhecer `KnowledgeAgent` para não acoplar os dois além do necessário |
+| D19 | Bug de correção (achado por teste manual do usuário, não pelo eval): `_stem` passou a remover um "s" final de plural antes do corte de prefixo, e `content_terms` (usado tanto por `coverage_lexical` quanto pela vetorização dos dois retrievers) passou a aplicar esse stemming, não só a função de cobertura; `top_k` default de `RetrieverPort.search` subiu de 3 para 20 (corpus tem 13 chunks) | "Qual a taxa de débito?" (singular, 4 letras) nunca colidia com "taxas" (plural) no corpus — nem no prefixo de 5 chars, nem no vetor de cosseno, que via os dois como palavras diferentes; e mesmo corrigida a cobertura, `top_k=3` às vezes cortava o chunk certo antes do gate de evidência (REQ-09) sequer vê-lo, porque o score dele (sinal que REQ-09 explicitamente não confia) era mais baixo que o de chunks menores e menos relevantes. Sem essa chave, a pergunta caía pra busca web e trazia conteúdo de concorrente (Cielo) em vez do conteúdo da própria Getnet. Recalibrado contra `eval_dataset.json` inteiro: zero regressão |
+
 ## Portas e adapters
 
 ``` text
-application/ports/     LLMPort, WebSearchPort, RetrieverPort, EmbeddingPort, CustomerDataPort
-adapters/llm/          GeminiAdapter, GroqAdapter
+application/ports/     LLMPort, WebSearchPort, RetrieverPort, CustomerDataPort
+adapters/llm/          GeminiAdapter
 adapters/search/       TavilyWebSearchAdapter
-adapters/retrieval/    LexicalRetriever, SemanticRetriever
+adapters/retrieval/    LexicalRetriever, SemanticRetriever, GeminiSemanticRetriever (P1.1)
 adapters/customer/     InMemoryCustomerRepository
-entrypoints/           http.py (FastAPI), ui.py (Gradio), settings.py
+entrypoints/           http.py (FastAPI), ui.py (Gradio, branded), settings.py
 ```
 
 ## Degradação
@@ -61,5 +70,8 @@ entrypoints/           http.py (FastAPI), ui.py (Gradio), settings.py
 
 ## Adiado (P1, documentado no README)
 
-Mercado GLOBAL completo · chaining Support→Knowledge · reranking · MCP server ·
-eval de qualidade de resposta (LLM-as-judge) · branding Getnet além do básico.
+Mercado GLOBAL completo · reranking · MCP server · eval de qualidade de resposta
+(LLM-as-judge).
+
+Concluído pós-cutoff: retriever semântico com embeddings reais (P1.1, D16) · branding
+Getnet na UI (P1.2, D17) · chaining Support→Knowledge (P1.3, D18).

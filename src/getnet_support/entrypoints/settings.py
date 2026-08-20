@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     tavily_api_key: str = ""
     groq_api_key: str = ""
 
-    retriever: Literal["lexical", "semantic"] = "lexical"
+    retriever: Literal["lexical", "semantic", "semantic_embeddings"] = "lexical"
     score_min: float = 0.1
     coverage_min: float = 0.55
     router_confidence_min: float = 0.6

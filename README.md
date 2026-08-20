@@ -103,12 +103,21 @@ this small.
 **Storage:** loaded once per process via `adapters/retrieval/corpus_loader.py`
 (`functools.lru_cache`), parsed into the domain `CorpusChunk` type.
 
-**Retrieval:** two interchangeable implementations behind `RetrieverPort`
+**Retrieval:** three interchangeable implementations behind `RetrieverPort`
 (`application/ports/retriever_port.py`), selected by `RETRIEVER`:
-- `LexicalRetriever` — bag-of-words cosine similarity over canonicalized tokens.
-- `SemanticRetriever` — a **local, deterministic hashed-vector cosine** retriever. See
-  [Why "semantic" isn't a real embedding model](#why-semantic-isnt-a-real-embedding-model-p1)
-  below for why, and what real semantic search would look like.
+- `lexical` (default) — `LexicalRetriever`, bag-of-words cosine similarity over
+  canonicalized tokens.
+- `semantic` — `SemanticRetriever`, a **local, deterministic hashed-vector cosine**
+  retriever, no API key, no network. See
+  [Why the local "semantic" mode isn't a real embedding model](#why-the-local-semantic-mode-isnt-a-real-embedding-model)
+  below for why it exists.
+- `semantic_embeddings` (P1.1) — `GeminiSemanticRetriever`, real Gemini `text-embedding-004`
+  embeddings, asymmetric `RETRIEVAL_DOCUMENT`/`RETRIEVAL_QUERY` task types, corpus embedded
+  once at startup. Requires `GOOGLE_API_KEY`; falls back to `semantic` (logged as
+  `retriever_fallback`) if the key is missing or the startup embedding call fails, rather
+  than crashing the process (REQ-24). A query-time embedding failure degrades to "no
+  candidates" for that one request, letting the Knowledge Agent fall through to the web step
+  instead of raising into `/chat`.
 
 **Generation:** `GeminiAdapter` (`adapters/llm/gemini_adapter.py`) generates an answer
 strictly grounded in the one accepted chunk, with an explicit timeout and one bounded retry
@@ -136,7 +145,18 @@ chunk, computed with:
   corpus is 100% Portuguese, but half the eval's official scenarios are in English
   (`"receivables advance (antecipação)"`); literal token overlap alone left legitimate
   in-corpus questions below 0.4 coverage,
-- a 5-character prefix stem, tolerant of PT/EN inflection (`parcelar`/`parcelas`).
+- a 5-character prefix stem, tolerant of PT/EN inflection (`parcelar`/`parcelas`), plus a
+  trailing-plural-`s` strip *before* that cut — without it, a short root and its plural never
+  collide (`"taxa"`, 4 chars, is too short to truncate; `"taxas"`, exactly 5, is untouched
+  too — they compare unequal). This stemming applies inside `content_terms`, which both
+  retrievers' vectors are built from, not only inside coverage — otherwise coverage could
+  accept a chunk that the retrieval score still scored near zero on the same pair of terms,
+  and the gate's `AND` would reject anyway. Found via manual testing (not the eval dataset):
+  "qual a taxa de débito?" fell through to a live web search and returned a competitor's
+  rates instead of Getnet's own pricing chunk. See `plan.md` D19.
+- `top_k=20` on every retriever call (corpus is 13 chunks) — a smaller `top_k` let
+  `score_retrieval`, the signal REQ-09 explicitly doesn't trust, exclude a high-coverage
+  chunk before the gate ever saw it, same bug report.
 
 `SCORE_MIN=0.1` / `COVERAGE_MIN=0.55` were calibrated empirically against
 `tests/acceptance/eval_dataset.json`: every in-corpus case clears >= 0.60 coverage, every
@@ -150,18 +170,21 @@ knowledge code is there a keyword list for "needs current info" (weather, exchan
 etc.). Whether the Knowledge Agent attempts a web search is a pure consequence of the
 evidence gate rejecting every corpus chunk.
 
-### Why "semantic" isn't a real embedding model (P1)
+### Why the local "semantic" mode isn't a real embedding model
 
-`tests/acceptance/eval_dataset.json` is run against **both** retrievers, fully offline
-(`GOOGLE_API_KEY=""`), and REQ-16 requires identical routing/provenance results either way.
-The eval fixture's own docstring calls for "precomputed embeddings from the committed
-corpus, so parity is verifiable without an API key" — which is incompatible with gating a
-real embedding call behind `GOOGLE_API_KEY`. `SemanticRetriever` is therefore a **local**
-hashed bag-of-words vectorizer (`adapters/retrieval/semantic_retriever.py`): deterministic,
-computed once at startup from the committed corpus, no network call ever. It satisfies
-REQ-16 today; it is not what "semantic retrieval" means in production. Swapping in a real
-embedding model (Gemini `text-embedding-*`, cached per corpus chunk) is documented as P1
-below — `RetrieverPort` is the seam that makes that swap a new adapter, not a rewrite.
+`tests/acceptance/eval_dataset.json` is run against `lexical` and `semantic` (the local
+mode), fully offline (`GOOGLE_API_KEY=""`), and REQ-16 requires identical routing/provenance
+results either way. The eval fixture's own docstring calls for "precomputed embeddings from
+the committed corpus, so parity is verifiable without an API key" — incompatible with
+gating a real embedding call behind `GOOGLE_API_KEY` for a test that must stay green with no
+key at all. `SemanticRetriever` (`adapters/retrieval/semantic_retriever.py`) is therefore a
+**local** hashed bag-of-words vectorizer: deterministic, computed once at startup, no
+network call ever. It satisfies REQ-16 as the offline-verifiable mode; it was never meant to
+be what "semantic retrieval" means in production. `GeminiSemanticRetriever`
+(`adapters/retrieval/gemini_semantic_retriever.py`, P1.1, `RETRIEVER=semantic_embeddings`) is
+that production version — real embeddings, opt-in, additive: it doesn't touch `lexical` or
+`semantic`, and the eval's offline parity guarantee for those two is unaffected.
+`RetrieverPort` is the seam that made this a new adapter, not a rewrite.
 
 ## Bilingual and market handling (REQ-20/21)
 
@@ -222,15 +245,33 @@ metadata-only unless an explicit content-tracing approval is documented (see
 Explicitly deferred, not silently dropped:
 
 - **GLOBAL market**, fully — only 3 corpus chunks today; BR is P0 and complete (REQ-22).
-- **Real embedding-model semantic retrieval** (Gemini `text-embedding-*`) replacing the
-  local hashed vectorizer — see [above](#why-semantic-isnt-a-real-embedding-model-p1).
-- **Chaining Support → Knowledge** — e.g. "maquininha não conecta" resolving the terminal
-  status *and* pulling the matching troubleshooting KB article in one turn.
 - **Reranking** over retrieved chunks.
 - **MCP server** exposing the agents' tools externally.
 - **Response-quality eval** (LLM-as-judge) — today's eval checks routing/provenance
   metadata, not answer quality.
-- **Getnet branding** in the Gradio UI beyond the functional execution panel.
+
+Done, post-cutoff (see `tasks.md` "Pós-cutoff" and `plan.md` D11-D18 for the decisions
+behind each):
+
+- **P1.1 — real embedding-model semantic retrieval**: `RETRIEVER=semantic_embeddings`. See
+  [above](#why-the-local-semantic-mode-isnt-a-real-embedding-model).
+- **P1.2 — Getnet branding**: an orange theme (`entrypoints/ui.py:build_theme`/`CUSTOM_CSS`,
+  applied at `gr.mount_gradio_app(..., theme=..., css=...)` — Gradio 6 moved these off the
+  `Blocks` constructor for mounted apps) and a branded header/footer. The exact color is an
+  approximation — this environment has no access to Getnet's official brand guidelines to
+  verify the hex — and there is no copied Getnet logo asset; only the wordmark and a
+  brand-appropriate palette.
+- **P1.3 — chaining Support → Knowledge**: when the Customer Support Agent finds a real
+  problem a KB article could supplement (today: a disconnected terminal —
+  `CustomerSupportResult.chain_to_knowledge`), the orchestrator additionally calls
+  `KnowledgeAgent.try_grounded_in_corpus` — the same evidence gate as a normal Knowledge
+  turn, but **corpus-only, never the web** (an unprompted web-search side effect on a
+  support turn would be a cost/surprise regression, REQ-11's discipline extended to P1). If
+  the gate accepts, the KB source is added and its answer is appended after "This might also
+  help:" / "Isso também pode ajudar:"; `grounding` stays `customer_data` (that's still the
+  primary evidence for the personalized claim) and `agents` gains `"knowledge"`. If the gate
+  rejects, the support answer is returned alone — chaining never turns into a wasted call or
+  a missing response.
 
 ## Reference
 
