@@ -45,7 +45,10 @@ The app starts and answers correctly with **no provider keys at all** — see [D
 
 ### Environment variables
 
-See `.env.example`. Summary:
+Copy `.env.example` to a local `.env` and fill in real values — it's loaded automatically at
+startup (`entrypoints/settings.py`, via `pydantic-settings`; already gitignored). A real process
+environment variable (e.g. `docker run -e VAR=...`) always takes precedence over the `.env` value.
+Summary:
 
 | Variable | Purpose | Default when unset |
 |---|---|---|

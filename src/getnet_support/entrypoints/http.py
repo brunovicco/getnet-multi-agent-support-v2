@@ -39,9 +39,12 @@ from getnet_support.domain.models import Locale
 from getnet_support.entrypoints.locale_detection import detect_locale
 from getnet_support.entrypoints.logging import configure_logging
 from getnet_support.entrypoints.schemas import ChatRequestBody, ChatResponseBody
+from getnet_support.entrypoints.settings import load_settings
 from getnet_support.entrypoints.ui_gradio import CSS as ui_css
 from getnet_support.entrypoints.ui_gradio import THEME as ui_theme
 from getnet_support.entrypoints.ui_gradio import build_blocks
+
+load_settings()  # populates os.environ from .env before anything below reads it
 
 _SERVICE_NAME = os.environ.get("SERVICE_NAME", "getnet-multi-agent-support")
 
