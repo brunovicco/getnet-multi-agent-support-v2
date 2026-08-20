@@ -23,7 +23,9 @@ from getnet_support.application.ports import (
 from getnet_support.domain.models import Locale, Market, RetrievedChunk, Source, WebSearchResult
 
 _CURRENT_INFO_PATTERN = re.compile(
-    r"\b(weather|forecast|clima|previs[ãa]o|temperatura|"
+    r"\b(weather|forecast|clima|previs[ãa]o|temperatura|graus|degrees|"
+    r"chov\w*|rain\w*|"
+    r"como\s+est[áa]\s+o\s+tempo|tempo\s+(hoje|amanh[ãa]|today|tomorrow)|"
     r"exchange\s+rate|c[âa]mbio|cota[çc][ãa]o|euro|d[óo]lar|dollar)\b",
     re.IGNORECASE,
 )

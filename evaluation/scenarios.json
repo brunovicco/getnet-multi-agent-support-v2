@@ -77,5 +77,13 @@
     "expected_route": "knowledge",
     "expect_sources": true,
     "expect_handoff": false
+  },
+  {
+    "id": "eval-011",
+    "message": "Quantos graus vai fazer amanhã em São Paulo?",
+    "user_id": "cliente1988",
+    "expected_route": "knowledge",
+    "expected_tool": "tavily_web_search",
+    "expect_handoff": false
   }
 ]
