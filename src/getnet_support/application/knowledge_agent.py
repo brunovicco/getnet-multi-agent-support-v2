@@ -10,6 +10,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+import structlog
+
 from getnet_support.application.guardrails import has_sufficient_knowledge_evidence
 from getnet_support.application.ports import (
     KnowledgeRetrieverPort,
@@ -42,6 +44,8 @@ _WEB_SYSTEM_PROMPT = (
     "results. Never invent facts beyond them. Respond in {locale}." + _UNTRUSTED_CONTENT_GUARDRAIL
 )
 
+_logger = structlog.get_logger(__name__)
+
 
 @dataclass(frozen=True, slots=True)
 class KnowledgeResult:
@@ -67,18 +71,24 @@ class KnowledgeAgent:
     async def handle(self, *, message: str, market: Market, locale: Locale) -> KnowledgeResult:
         """Answer using web search for current/external questions, local RAG otherwise."""
         if _CURRENT_INFO_PATTERN.search(message):
+            _logger.debug("knowledge_agent_strategy", strategy="web_search")
             return await self._handle_web_search(message, locale)
+        _logger.debug("knowledge_agent_strategy", strategy="rag", market=market.value)
         return await self._handle_rag(message, market, locale)
 
     async def _handle_web_search(self, message: str, locale: Locale) -> KnowledgeResult:
         if not self._web_search.is_configured():
+            _logger.warning("web_search_unavailable", reason="not_configured")
             return _unavailable_result("web_search_unavailable", locale)
         try:
             results = await self._web_search.search(message)
-        except WebSearchUnavailableError:
+        except WebSearchUnavailableError as exc:
+            _logger.warning("web_search_unavailable", reason="call_failed", error=str(exc))
             return _unavailable_result("web_search_failed", locale)
         if not results:
+            _logger.warning("web_search_unavailable", reason="no_results")
             return _unavailable_result("web_search_no_results", locale)
+        _logger.debug("web_search_succeeded", result_count=len(results))
 
         answer = await self._generate(
             system_prompt=_WEB_SYSTEM_PROMPT.format(locale=locale.value),
@@ -104,6 +114,13 @@ class KnowledgeAgent:
     async def _handle_rag(self, message: str, market: Market, locale: Locale) -> KnowledgeResult:
         chunks = await self._retriever.retrieve(message, market=market, top_k=3)
         if not has_sufficient_knowledge_evidence(chunks):
+            top_score = max((item.score for item in chunks), default=0.0)
+            _logger.info(
+                "rag_insufficient_evidence",
+                market=market.value,
+                chunk_count=len(chunks),
+                top_score=round(top_score, 4),
+            )
             return KnowledgeResult(
                 answer=_insufficient_evidence_message(locale),
                 sources=(),
@@ -137,7 +154,8 @@ class KnowledgeAgent:
             return await self._llm.generate(
                 system_prompt=system_prompt, user_prompt=user_prompt, locale=locale
             )
-        except LLMGenerationError:
+        except LLMGenerationError as exc:
+            _logger.warning("llm_generation_failed_using_fallback", error=str(exc))
             return fallback()
 
 

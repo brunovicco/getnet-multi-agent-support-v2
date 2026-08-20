@@ -8,6 +8,8 @@ UI and the backend.
 import time
 import uuid
 
+import structlog
+
 from getnet_support.application.customer_support_agent import (
     CustomerSupportAgent,
     CustomerSupportResult,
@@ -31,6 +33,8 @@ from getnet_support.domain.models import (
 _TERMINAL_TROUBLESHOOTING_QUERY = (
     "maquininha terminal sem internet nao conecta offline troubleshooting"
 )
+
+_logger = structlog.get_logger(__name__)
 
 
 class ChatApplicationService:
@@ -92,6 +96,18 @@ class ChatApplicationService:
                 handoff_required = True
 
         latency_ms = int((time.monotonic() - started) * 1000)
+        _logger.info(
+            "chat_handled",
+            trace_id=trace_id,
+            route=route.value,
+            agents=[agent.value for agent in agents],
+            tools=list(tools),
+            sources_count=len(sources),
+            handoff_required=handoff_required,
+            market=market.value,
+            locale=locale.value,
+            latency_ms=latency_ms,
+        )
         return ChatResult(
             answer=answer,
             sources=sources,
