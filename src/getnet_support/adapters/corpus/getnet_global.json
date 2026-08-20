@@ -1,0 +1,35 @@
+[
+  {
+    "id": "global-overview",
+    "title": "Getnet Global — Omnichannel Payments",
+    "source": "https://www.getnet.net/en",
+    "market": "GLOBAL",
+    "language": "en",
+    "topic": "produtos",
+    "retrieved_at": "2026-08-19",
+    "volatility": "medium",
+    "text": "Getnet operates an omnichannel payment platform across markets outside Brazil, including Mexico, Chile, Argentina, Uruguay, Colombia, Spain and Portugal, offering in-store, online and mobile payment acceptance with locally tailored solutions."
+  },
+  {
+    "id": "global-scale",
+    "title": "Getnet Global — Scale",
+    "source": "https://www.getnet.net/en",
+    "market": "GLOBAL",
+    "language": "en",
+    "topic": "produtos",
+    "retrieved_at": "2026-08-19",
+    "volatility": "medium",
+    "text": "Getnet is the #1 acquirer in Latin America by transaction volume, processing roughly €238 billion annually across 35 countries with 1.2 million active merchants."
+  },
+  {
+    "id": "global-solutions",
+    "title": "Getnet Global — Specialized Solutions",
+    "source": "https://www.getnet.net/en",
+    "market": "GLOBAL",
+    "language": "en",
+    "topic": "produtos",
+    "retrieved_at": "2026-08-19",
+    "volatility": "low",
+    "text": "Beyond core payment acceptance, Getnet Global offers industry-specific solutions for restaurants, travel, and health & beauty, plus enterprise offerings for international companies and SMEs, alongside emerging services such as agentic-commerce infrastructure and the Getnet Engage loyalty program."
+  }
+]
