@@ -1,8 +1,11 @@
-"""Behavior tests for the Knowledge Agent's web-search-vs-RAG strategy selection.
+"""Behavior tests for the Knowledge Agent's RAG-first, web-search-fallback chain.
 
-Regression coverage for a real gap found in production use: PT-BR weather phrasings without the
-literal words "clima"/"previsão"/"temperatura" (e.g. "quantos graus vai fazer amanhã em São
-Paulo?") were silently falling through to RAG instead of Tavily.
+No keyword/regex classification decides whether to search the web: the local corpus is tried
+first (authoritative for Getnet), and web search is the mandatory fallback whenever it doesn't
+have enough evidence — regardless of what the question is about or how it's phrased. This
+replaced an earlier keyword-based classifier that silently failed for phrasings it didn't
+anticipate (e.g. "quantos graus vai fazer amanhã em São Paulo?", which didn't contain any of the
+literal words "clima"/"previsão"/"temperatura").
 """
 
 import asyncio
@@ -21,19 +24,31 @@ class _RaisingLLM:
 
 
 class _ConfiguredWebSearch:
+    """A healthy Tavily stand-in: always configured, always returns one result."""
+
     def is_configured(self) -> bool:
         return True
 
     async def search(self, query: str) -> tuple[WebSearchResult, ...]:
-        return (WebSearchResult(title="Forecast", url="https://example.test", snippet="22C"),)
+        return (WebSearchResult(title="Result", url="https://example.test", snippet="22C"),)
 
 
-def _agent() -> KnowledgeAgent:
-    return KnowledgeAgent(
-        retriever=LocalKnowledgeRetriever(),
-        web_search=_ConfiguredWebSearch(),
-        llm=_RaisingLLM(),
-    )
+class _UnconfiguredWebSearch:
+    def is_configured(self) -> bool:
+        return False
+
+    async def search(self, query: str) -> tuple[WebSearchResult, ...]:
+        raise AssertionError("should not be called when unconfigured")
+
+
+class _WebSearchThatMustNotBeCalled:
+    """Fails the test if invoked; used to prove RAG-first short-circuits a good RAG match."""
+
+    def is_configured(self) -> bool:
+        raise AssertionError("web search must not be consulted when RAG already has evidence")
+
+    async def search(self, query: str) -> tuple[WebSearchResult, ...]:
+        raise AssertionError("web search must not be consulted when RAG already has evidence")
 
 
 @pytest.mark.parametrize(
@@ -44,11 +59,16 @@ def _agent() -> KnowledgeAgent:
         "como está o tempo hoje?",
         "What's the weather forecast in Porto Alegre tomorrow?",
         "What's the euro exchange rate today?",
+        "What is the capital of France?",
     ],
 )
-def test_current_info_phrasings_use_web_search(message: str) -> None:
-    result = asyncio.run(_agent().handle(message=message, market=Market.BR, locale=Locale.PT_BR))
+def test_questions_the_corpus_cannot_answer_fall_back_to_web_search(message: str) -> None:
+    agent = KnowledgeAgent(
+        retriever=LocalKnowledgeRetriever(), web_search=_ConfiguredWebSearch(), llm=_RaisingLLM()
+    )
+    result = asyncio.run(agent.handle(message=message, market=Market.BR, locale=Locale.PT_BR))
     assert result.tool_used == "tavily_web_search"
+    assert result.sufficient_evidence is True
 
 
 @pytest.mark.parametrize(
@@ -58,6 +78,27 @@ def test_current_info_phrasings_use_web_search(message: str) -> None:
         "Quanto tempo demora a antecipação?",
     ],
 )
-def test_product_questions_use_rag_not_web_search(message: str) -> None:
-    result = asyncio.run(_agent().handle(message=message, market=Market.BR, locale=Locale.PT_BR))
+def test_questions_the_corpus_can_answer_never_reach_web_search(message: str) -> None:
+    agent = KnowledgeAgent(
+        retriever=LocalKnowledgeRetriever(),
+        web_search=_WebSearchThatMustNotBeCalled(),
+        llm=_RaisingLLM(),
+    )
+    result = asyncio.run(agent.handle(message=message, market=Market.BR, locale=Locale.PT_BR))
     assert result.tool_used == "local_rag"
+    assert result.sufficient_evidence is True
+
+
+def test_escalates_with_no_fabrication_when_both_sources_lack_evidence() -> None:
+    agent = KnowledgeAgent(
+        retriever=LocalKnowledgeRetriever(),
+        web_search=_UnconfiguredWebSearch(),
+        llm=_RaisingLLM(),
+    )
+    result = asyncio.run(
+        agent.handle(
+            message="xyzzy unrelated gibberish nonsense", market=Market.BR, locale=Locale.EN
+        )
+    )
+    assert result.sufficient_evidence is False
+    assert result.sources == ()

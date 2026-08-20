@@ -97,6 +97,16 @@ _STOPWORDS = frozenset(
         "esse",
         "essa",
         "há",
+        "hoje",
+        "amanhã",
+        "amanha",
+        "ontem",
+        "today",
+        "tomorrow",
+        "yesterday",
+        "agora",
+        "now",
+        "tempo",
     }
 )
 

@@ -62,11 +62,11 @@ flowchart LR
     UI["Gradio UI<br/>(mounted at /)"] --> SVC
     API["POST /chat<br/>(FastAPI)"] --> SVC["ChatApplicationService"]
     SVC --> ROUTER["Router Agent<br/>(deterministic rules)"]
-    ROUTER -->|product / current-info question| KNOW["Knowledge Agent"]
+    ROUTER -->|general / product question| KNOW["Knowledge Agent"]
     ROUTER -->|customer-specific question| SUPPORT["Customer Support Agent"]
-    ROUTER -->|unsafe / unknown / low confidence| ESC["Escalation Agent"]
-    KNOW --> RAG["Local RAG retriever<br/>(persisted corpus, IDF-weighted)"]
-    KNOW --> WEB["Tavily web search"]
+    ROUTER -->|unsafe / unknown request| ESC["Escalation Agent"]
+    KNOW -->|1. try first| RAG["Local RAG retriever<br/>(persisted corpus, IDF-weighted)"]
+    RAG -.insufficient evidence.-> WEB["2. Tavily web search<br/>(mandatory fallback)"]
     KNOW --> LLM["LLMPort → Gemini<br/>(or extractive fallback)"]
     SUPPORT --> TOOLS["get_customer_profile<br/>get_recent_transactions<br/>get_terminal_status"]
     SUPPORT -.terminal issue.-> KNOW
@@ -90,9 +90,12 @@ entrypoints/  FastAPI routes, Gradio Blocks UI, Pydantic schemas, logging bootst
 - **Router Agent** (`application/router_agent.py`) — regex-based deterministic classification into
   `knowledge` / `customer_support` / `escalation`. Never delegates authorization, guardrails,
   customer-data access, market isolation, or financial operations to an LLM.
-- **Knowledge Agent** (`application/knowledge_agent.py`) — RAG over the local corpus for product
-  questions, Tavily for current/external questions (weather, exchange rates). Grounds every answer
-  in retrieved context; reports insufficient evidence instead of guessing.
+- **Knowledge Agent** (`application/knowledge_agent.py`) — RAG-first, web-search-fallback. Tries
+  the authoritative Getnet corpus first; whenever it doesn't have enough evidence — because the
+  question isn't about Getnet, or the corpus doesn't cover it — it **always** falls back to a real
+  Tavily search instead of giving up. No keyword/regex decides *whether* to search the web; only
+  evidence does. Grounds every answer in retrieved context; reports insufficient evidence (from
+  both sources) instead of guessing.
 - **Customer Support Agent** (`application/customer_support_agent.py`) — calls
   `get_customer_profile`, `get_recent_transactions`, `get_terminal_status` against an in-memory
   CRM/settlement/terminal fixture, always scoped to the request's `user_id` (never to text parsed
@@ -157,12 +160,30 @@ the Brazilian corpus.
   failed call, → the agent reports the information as unavailable. Only the free-text question is
   ever sent to Tavily — never `user_id` or customer data.
 
+### Why web search is a mandatory fallback, not a keyword-gated branch
+
+An earlier version decided "is this a current-info question?" with a regex (`weather|forecast|
+clima|...`) before ever considering Tavily. That is exactly the kind of brittleness that keeps
+breaking in practice — real users found two gaps in one session ("My card machine won't connect to
+the internet" not matching a Portuguese-only pattern in the Router, then "quantos graus vai fazer
+amanhã em São Paulo?" not matching any literal weather keyword). No fixed keyword list generalizes
+to open-ended natural language.
+
+The Knowledge Agent no longer classifies topics at all: it tries the local corpus first (it's
+authoritative for Getnet facts) and, whenever the corpus doesn't clear the minimum evidence score —
+regardless of *why*, whether the question is about weather, a country's capital, or anything else
+not covered by the ~13-chunk corpus — it unconditionally calls Tavily next. Only when **both**
+sources come up empty does it report insufficient evidence and let the orchestrator escalate. See
+`KnowledgeAgent.handle` in `application/knowledge_agent.py` and the regression tests in
+`tests/unit/test_knowledge_agent.py`, which assert both directions: a good RAG match never touches
+web search (no wasted Tavily calls), and anything RAG can't answer always does.
+
 ### Degraded mode (no provider keys)
 
 The service starts and answers every scenario with **zero** environment variables set: product
-questions get an extractive answer quoting the top retrieved chunk; current/external questions get
-an explicit "unavailable" message; customer-data questions are unaffected (they never touch an
-LLM). Nothing is ever fabricated.
+questions get an extractive answer quoting the top retrieved chunk; questions the corpus can't
+answer get an explicit "unavailable" message instead of a Tavily call; customer-data questions are
+unaffected (they never touch an LLM). Nothing is ever fabricated.
 
 ## Guardrails
 
