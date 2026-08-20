@@ -108,6 +108,16 @@ ignore_missing_imports = true
 module = ["tavily", "tavily.errors"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# gradio synthesizes component event methods (.click()/.submit()/...) from
+# each component's EVENTS list via a metaclass at runtime. Whether mypy
+# resolves them statically is environment-dependent with identical locked
+# dependency versions (reproduced: fails on the Linux CI runner, passes
+# locally on macOS) - disable unused-ignore here so this file type-checks
+# cleanly either way instead of flip-flopping between environments.
+module = ["getnet_support.entrypoints.ui"]
+warn_unused_ignores = false
+
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers --cov=src/getnet_support --cov-report=term-missing -m 'not live'"
 testpaths = ["tests"]
