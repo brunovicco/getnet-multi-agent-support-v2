@@ -10,12 +10,17 @@ from typing import Literal
 import gradio as gr
 import structlog
 from fastapi import FastAPI
+from governed_llm_gateway_contracts import DataClassification, RiskLevel
 from pydantic import BaseModel, ConfigDict, Field
 
 from getnet_support.adapters.customer.in_memory_customer_repository import (
     InMemoryCustomerRepository,
 )
 from getnet_support.adapters.llm.gemini_adapter import GeminiAdapter
+from getnet_support.adapters.llm.governed_gateway_adapter import (
+    GovernedGatewayAdapter,
+    GovernedGatewayConfig,
+)
 from getnet_support.adapters.retrieval.corpus_loader import load_corpus
 from getnet_support.adapters.retrieval.gemini_semantic_retriever import GeminiSemanticRetriever
 from getnet_support.adapters.retrieval.lexical_retriever import LexicalRetriever
@@ -55,7 +60,7 @@ def _build_retriever(
     crashing the process (REQ-24: degrade explicitly, never fabricate).
     """
     if settings.retriever == "semantic_embeddings":
-        if not settings.llm_configured:
+        if not settings.google_llm_configured:
             _logger.warning(
                 "retriever_fallback",
                 configured="semantic_embeddings",
@@ -79,6 +84,23 @@ def _build_retriever(
     if settings.retriever == "semantic":
         return SemanticRetriever(corpus), "semantic"
     return LexicalRetriever(corpus), "lexical"
+
+
+def _build_llm(settings: Settings) -> LLMPort | None:
+    """Build only the explicitly selected generation adapter."""
+    if not settings.llm_configured:
+        return None
+    if settings.llm_provider == "gateway":
+        return GovernedGatewayAdapter(
+            GovernedGatewayConfig(
+                base_url=settings.gateway_url,
+                api_key=settings.gateway_api_key,
+                workload=settings.gateway_workload,
+                risk_level=RiskLevel(settings.gateway_risk_level),
+                data_classification=DataClassification(settings.gateway_data_classification),
+            )
+        )
+    return GeminiAdapter(settings.google_api_key)
 
 
 class ChatRequestModel(BaseModel):
@@ -163,9 +185,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
 
     corpus = load_corpus()
     retriever, retriever_mode = _build_retriever(settings, corpus)
-    llm: LLMPort | None = (
-        GeminiAdapter(settings.google_api_key) if settings.llm_configured else None
-    )
+    llm = _build_llm(settings)
     web_search: WebSearchPort | None = (
         TavilyWebSearchAdapter(settings.tavily_api_key) if settings.web_search_configured else None
     )

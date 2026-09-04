@@ -7,6 +7,8 @@ requires-python = ">=3.13,<3.15"
 dependencies = [
     "fastapi>=0.141.1",
     "google-genai>=2.19.0",
+    "governed-llm-gateway-client",
+    "governed-llm-gateway-contracts",
     "gradio>=6.25.0",
     "httpx>=0.28.1",
     "pydantic>=2.11",
@@ -15,6 +17,10 @@ dependencies = [
     "tavily-python>=0.7.27",
     "uvicorn>=0.52.4",
 ]
+
+[tool.uv.sources]
+governed-llm-gateway-client = { git = "https://github.com/brunovicco/governed-llm-gateway.git", rev = "96b09956e933db50bf9ea900973f8a0b2145cb3c", subdirectory = "packages/gateway-client" }
+governed-llm-gateway-contracts = { git = "https://github.com/brunovicco/governed-llm-gateway.git", rev = "96b09956e933db50bf9ea900973f8a0b2145cb3c", subdirectory = "packages/gateway-contracts" }
 
 [project.optional-dependencies]
 # Opt-in LLM tracing; see docs/LLM_OBSERVABILITY.md. Install with `uv sync --extra tracing`.
