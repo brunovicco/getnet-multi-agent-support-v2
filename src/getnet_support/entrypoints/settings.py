@@ -28,9 +28,9 @@ class Settings(BaseSettings):
     gateway_api_key: str = ""
     gateway_workload: str = "support.getnet.answer"
     gateway_risk_level: Literal["low", "medium", "high", "critical"] = "low"
-    gateway_data_classification: Literal[
-        "public", "internal", "confidential", "restricted"
-    ] = "public"
+    gateway_data_classification: Literal["public", "internal", "confidential", "restricted"] = (
+        "public"
+    )
 
     tavily_api_key: str = ""
     groq_api_key: str = ""

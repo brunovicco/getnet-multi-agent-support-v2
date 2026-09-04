@@ -62,10 +62,7 @@ def test_gateway_adapter_maps_provider_neutral_request(monkeypatch: pytest.Monke
     assert answer == "governed answer"
     assert _FakeGatewayClient.observed_kwargs["workload"] == "support.getnet.answer"
     assert _FakeGatewayClient.observed_kwargs["risk_level"] is RiskLevel.LOW
-    assert (
-        _FakeGatewayClient.observed_kwargs["data_classification"]
-        is DataClassification.PUBLIC
-    )
+    assert _FakeGatewayClient.observed_kwargs["data_classification"] is DataClassification.PUBLIC
     assert _FakeGatewayClient.observed_kwargs["provider_timeout_seconds"] == 2.0
 
 

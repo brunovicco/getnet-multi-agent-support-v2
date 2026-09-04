@@ -578,6 +578,8 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "google-genai" },
+    { name = "governed-llm-gateway-client" },
+    { name = "governed-llm-gateway-contracts" },
     { name = "gradio" },
     { name = "httpx" },
     { name = "pydantic" },
@@ -606,6 +608,8 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "google-genai", specifier = ">=2.19.0" },
+    { name = "governed-llm-gateway-client", git = "https://github.com/brunovicco/governed-llm-gateway.git?subdirectory=packages%2Fgateway-client&rev=96b09956e933db50bf9ea900973f8a0b2145cb3c" },
+    { name = "governed-llm-gateway-contracts", git = "https://github.com/brunovicco/governed-llm-gateway.git?subdirectory=packages%2Fgateway-contracts&rev=96b09956e933db50bf9ea900973f8a0b2145cb3c" },
     { name = "gradio", specifier = ">=6.25.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "langfuse", marker = "extra == 'tracing'", specifier = ">=3.0" },
@@ -677,6 +681,20 @@ sdist = { url = "https://files.pythonhosted.org/packages/72/73/74bcab964c9a7a61f
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9a/51/186c02b8549b69ccda44429cf6ff5081e4b61a602ddfe6a8020d1be31d1b/googleapis_common_protos-1.75.1-py3-none-any.whl", hash = "sha256:28a1934bcd33b9c9da66ac301a0a4227e3367f095a17d0375cb98f0a09d93b79", size = 300626, upload-time = "2026-08-06T06:23:46.696Z" },
 ]
+
+[[package]]
+name = "governed-llm-gateway-client"
+version = "0.2.0"
+source = { git = "https://github.com/brunovicco/governed-llm-gateway.git?subdirectory=packages%2Fgateway-client&rev=96b09956e933db50bf9ea900973f8a0b2145cb3c#96b09956e933db50bf9ea900973f8a0b2145cb3c" }
+dependencies = [
+    { name = "governed-llm-gateway-contracts" },
+    { name = "httpx" },
+]
+
+[[package]]
+name = "governed-llm-gateway-contracts"
+version = "0.1.0"
+source = { git = "https://github.com/brunovicco/governed-llm-gateway.git?subdirectory=packages%2Fgateway-contracts&rev=96b09956e933db50bf9ea900973f8a0b2145cb3c#96b09956e933db50bf9ea900973f8a0b2145cb3c" }
 
 [[package]]
 name = "gradio"
