@@ -2,7 +2,7 @@ from types import TracebackType
 from typing import ClassVar
 
 import pytest
-from governed_llm_gateway_contracts import DataClassification, RiskLevel
+from governed_llm_gateway_contracts import DataClassification, ExecutionStatus, RiskLevel
 
 from getnet_support.adapters.llm import governed_gateway_adapter as gateway_module
 from getnet_support.adapters.llm.governed_gateway_adapter import (
@@ -14,13 +14,19 @@ from getnet_support.entrypoints.settings import Settings
 
 
 class _FakeResponse:
-    def __init__(self, content: str | None) -> None:
+    def __init__(
+        self,
+        content: str | None,
+        status: ExecutionStatus = ExecutionStatus.SUCCEEDED,
+    ) -> None:
         self.content = content
+        self.status = status
 
 
 class _FakeGatewayClient:
     observed_kwargs: ClassVar[dict[str, object]] = {}
     response_content: ClassVar[str | None] = "governed answer"
+    response_status: ClassVar[ExecutionStatus] = ExecutionStatus.SUCCEEDED
 
     def __init__(self, config: object) -> None:
         self.config = config
@@ -38,7 +44,7 @@ class _FakeGatewayClient:
 
     async def generate(self, **kwargs: object) -> _FakeResponse:
         type(self).observed_kwargs = kwargs
-        return _FakeResponse(type(self).response_content)
+        return _FakeResponse(type(self).response_content, type(self).response_status)
 
 
 def _adapter() -> GovernedGatewayAdapter:
@@ -56,6 +62,7 @@ def _adapter() -> GovernedGatewayAdapter:
 def test_gateway_adapter_maps_provider_neutral_request(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(gateway_module, "GatewayClient", _FakeGatewayClient)
     _FakeGatewayClient.response_content = " governed answer "
+    _FakeGatewayClient.response_status = ExecutionStatus.SUCCEEDED
 
     answer = _adapter().generate(prompt="approved evidence", timeout_seconds=2.0)
 
@@ -69,8 +76,18 @@ def test_gateway_adapter_maps_provider_neutral_request(monkeypatch: pytest.Monke
 def test_gateway_adapter_fails_closed_on_empty_content(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(gateway_module, "GatewayClient", _FakeGatewayClient)
     _FakeGatewayClient.response_content = None
+    _FakeGatewayClient.response_status = ExecutionStatus.SUCCEEDED
 
     with pytest.raises(LLMUnavailableError, match="no text content"):
+        _adapter().generate(prompt="approved evidence", timeout_seconds=2.0)
+
+
+def test_gateway_adapter_rejects_failed_partial_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(gateway_module, "GatewayClient", _FakeGatewayClient)
+    _FakeGatewayClient.response_content = "partial answer must not escape"
+    _FakeGatewayClient.response_status = ExecutionStatus.FAILED
+
+    with pytest.raises(LLMUnavailableError, match="execution did not succeed"):
         _adapter().generate(prompt="approved evidence", timeout_seconds=2.0)
 
 
