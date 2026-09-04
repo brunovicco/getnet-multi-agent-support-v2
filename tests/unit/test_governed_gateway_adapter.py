@@ -87,6 +87,18 @@ def test_gateway_generation_configuration_is_independent_from_gemini_key() -> No
     assert settings.google_llm_configured is False
 
 
+def test_gateway_generation_fails_closed_when_gateway_credential_is_incomplete() -> None:
+    settings = Settings(
+        llm_provider="gateway",
+        gateway_url="https://gateway.example.com",
+        gateway_api_key="",
+        google_api_key="google-key-must-not-be-used-as-fallback",
+    )
+
+    assert settings.gateway_configured is False
+    assert settings.llm_configured is False
+
+
 def test_semantic_embeddings_still_require_google_credential() -> None:
     settings = Settings(
         llm_provider="gateway",
