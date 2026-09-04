@@ -1,0 +1,35 @@
+name: phase14-gateway-normalize
+
+on:
+  push:
+    branches: [feat/governed-gateway-integration]
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/governed-gateway-integration
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: "0.11.28"
+      - run: uv python install
+      - run: |
+          uv lock
+          uv sync --frozen --all-groups
+          uv run ruff format src/getnet_support/adapters/llm/governed_gateway_adapter.py src/getnet_support/entrypoints/settings.py src/getnet_support/entrypoints/http.py tests/unit/test_governed_gateway_adapter.py
+          uv run ruff check --fix src/getnet_support/adapters/llm/governed_gateway_adapter.py src/getnet_support/entrypoints/settings.py src/getnet_support/entrypoints/http.py tests/unit/test_governed_gateway_adapter.py
+      - name: Commit deterministic normalization
+        run: |
+          rm .github/workflows/phase14-gateway-normalize.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add uv.lock src/getnet_support/adapters/llm/governed_gateway_adapter.py src/getnet_support/entrypoints/settings.py src/getnet_support/entrypoints/http.py tests/unit/test_governed_gateway_adapter.py .github/workflows/phase14-gateway-normalize.yml
+          git commit -m "style: normalize governed gateway integration"
+          git push origin HEAD:feat/governed-gateway-integration
