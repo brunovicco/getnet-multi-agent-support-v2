@@ -11,6 +11,7 @@ from governed_llm_gateway_client import (
 )
 from governed_llm_gateway_contracts import (
     DataClassification,
+    ExecutionStatus,
     Message,
     MessageRole,
     RiskLevel,
@@ -66,6 +67,8 @@ class GovernedGatewayAdapter:
                 f"Governed gateway request failed: {type(exc).__name__}"
             ) from None
 
+        if response.status is not ExecutionStatus.SUCCEEDED:
+            raise LLMUnavailableError("Governed gateway execution did not succeed")
         text = (response.content or "").strip()
         if not text:
             raise LLMUnavailableError("Governed gateway returned no text content")
