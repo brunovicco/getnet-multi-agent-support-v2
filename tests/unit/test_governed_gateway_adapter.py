@@ -1,4 +1,5 @@
 from types import TracebackType
+from typing import ClassVar
 
 import pytest
 from governed_llm_gateway_contracts import DataClassification, RiskLevel
@@ -18,8 +19,8 @@ class _FakeResponse:
 
 
 class _FakeGatewayClient:
-    observed_kwargs: dict[str, object] = {}
-    response_content: str | None = "governed answer"
+    observed_kwargs: ClassVar[dict[str, object]] = {}
+    response_content: ClassVar[str | None] = "governed answer"
 
     def __init__(self, config: object) -> None:
         self.config = config
